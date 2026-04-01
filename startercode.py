@@ -39,7 +39,7 @@ def load_json(filename):
     try:
         with open(filename, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
+    except:
         return {}
 
 
@@ -73,15 +73,13 @@ def search_breed(breed_id):
         JSON body as a dict (with a top-level 'data' key on success), OR None if the
         request failed or the response does not represent a successful breed lookup.
     """
-    try:
-        url = f"https://dogapi.dog/api/v2/breeds/{breed_id}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            parsed = response.json()
-            if parsed.get("data") is not None:
-                return (parsed, url)
-    except Exception:
-        pass
+    url = f"https://dogapi.dog/api/v2/breeds/{breed_id}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        parsed = response.json()
+        if parsed.get("data") is not None:
+            return (parsed, url)
+        
     return None
 
 
@@ -101,19 +99,17 @@ def update_cache(breed_ids, cache_file):
     """
     cache = load_json(cache_file)
     new_count = 0
- 
+
     for breed_id in breed_ids:
         url = f"https://dogapi.dog/api/v2/breeds/{breed_id}"
-        if url in cache:
-            continue
-        result = search_breed(breed_id)
-        if result is not None:
-            parsed, request_url = result
-            cache[request_url] = parsed
-            new_count += 1
- 
+        if url not in cache:
+            result = search_breed(breed_id)
+            if result:
+                cache[result[1]] = result[0]
+                new_count += 1
+
     create_cache(cache, cache_file)
- 
+
     total = len(breed_ids)
     percentage = (new_count / total) * 100 if total > 0 else 0.0
     return f"Cached data for {percentage}% of breeds"
@@ -131,7 +127,22 @@ def get_longest_lifespan_breed(cache_file):
         A tuple (breed_name, max_lifespan_integer) for the winning breed, OR the
         string "No breeds found" if no breed in the cache has a life.max value.
     """
-    pass
+    cache = load_json(cache_file)
+    breeds = []
+ 
+    for entry in cache.values():
+        try:
+            attrs = entry["data"]["attributes"]
+            max_life = attrs["life"]["max"]
+            if isinstance(max_life, (int, float)):
+                breeds.append((attrs["name"], int(max_life)))
+        except:
+            continue
+ 
+    if not breeds:
+        return "No breeds found"
+ 
+    return max(breeds, key=lambda x: (x[1], -ord(x[0][0])))
 
 
 def get_groups_above_cutoff(cutoff, cache_file):
