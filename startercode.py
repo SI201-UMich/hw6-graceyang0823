@@ -4,11 +4,13 @@
 # Your email: graceyng@umich.edu
 # Who or what you worked with on this homework (including generative AI like ChatGPT):
 # If you worked with generative AI also add a statement for how you used it.
-# e.g.:
-# Asked ChatGPT for help debugging and understanding the JSON structure
-#
+# I asked ChatGPT to help me identify errors in my code that were causing failures 
+# when I ran the tests. For example, I was failing tests for the recommend_breeds_in_same_group function, and
+# ChatGPT told me that my formatting was incorrect and explained how to fix it.
 # Did your use of GenAI on this assignment align with your goals and guidelines in your Gen AI contract? If not, why?
-#
+# My use of AI on this assignment did align with my Gen AI contract, because as I outlined in my 
+# guidelines, I would use GenAI to help me solve any errors I encounter as a last result after 
+# trying to problem-solve independently first, which is what I did.
 # --- ARGUMENTS & EXPECTED RETURN VALUES PROVIDED --- #
 # --- SEE INSTRUCTIONS FOR FULL DETAILS ON METHOD IMPLEMENTATION --- #
 
@@ -196,6 +198,43 @@ def recommend_breeds_in_same_group(breed_name, cache_file):
             "No group information available for '{breed_name}'."  (no group id)
             "No recommendations found based on '{breed_name}'."  (no other breeds in that group)
     """
+    cache = load_json(cache_file)
+ 
+    if not cache:
+        return "No breed data found in cache."
+ 
+    target_group = None
+    found = False
+ 
+    for entry in cache.values():
+        try:
+            data = entry["data"]
+            if data["attributes"]["name"].lower() == breed_name.lower():
+                found = True
+                target_group = data["relationships"]["group"]["data"]["id"]
+                break
+        except:
+            continue
+ 
+    if not found:
+        return f"'{breed_name}' is not in the cache."
+    if not target_group:
+        return f"No group information available for '{breed_name}'."
+ 
+    recommendations = []
+    for entry in cache.values():
+        try:
+            data = entry["data"]
+            name = data["attributes"]["name"]
+            group_id = data["relationships"]["group"]["data"]["id"]
+            if group_id == target_group and name.lower() != breed_name.lower():
+                recommendations.append(name)
+        except:
+            continue
+ 
+    if not recommendations:
+        return f"No recommendations found based on '{breed_name}'."
+    return sorted(recommendations)
 
 
 class TestHomeworkDogAPI(unittest.TestCase):
